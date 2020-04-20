@@ -1,5 +1,5 @@
 import { Fixture } from '../common/framework/fixture.js';
-import { DevicePool } from '../common/framework/gpu/implementation.js';
+import { getGPU } from '../common/framework/gpu/implementation.js';
 import { assert, unreachable } from '../common/framework/util/util.js';
 
 type TypedArrayBufferView =
@@ -21,6 +21,42 @@ type TypedArrayBufferViewConstructor =
   | Int32ArrayConstructor
   | Float32ArrayConstructor
   | Float64ArrayConstructor;
+
+class DevicePool {
+  device: GPUDevice | undefined = undefined;
+  state: 'free' | 'acquired' | 'uninitialized' | 'failed' = 'uninitialized';
+
+  private async initialize(): Promise<void> {
+    try {
+      const gpu = getGPU();
+      const adapter = await gpu.requestAdapter();
+      this.device = await adapter.requestDevice();
+    } catch (ex) {
+      this.state = 'failed';
+      throw ex;
+    }
+  }
+
+  async acquire(): Promise<GPUDevice> {
+    assert(this.state !== 'acquired', 'Device was in use');
+    assert(this.state !== 'failed', 'Failed to initialize WebGPU device');
+
+    const state = this.state;
+    this.state = 'acquired';
+    if (state === 'uninitialized') {
+      await this.initialize();
+    }
+
+    assert(!!this.device);
+    return this.device;
+  }
+
+  release(device: GPUDevice): void {
+    assert(this.state === 'acquired');
+    assert(device === this.device, 'Released device was the wrong device');
+    this.state = 'free';
+  }
+}
 
 const devicePool = new DevicePool();
 
@@ -49,8 +85,7 @@ export class GPUTest extends Fixture {
       await device.popErrorScope();
       unreachable('There was an error scope on the stack at the beginning of the test');
       /* eslint-disable-next-line no-empty */
-    } catch (ex) { }
-
+    } catch (ex) {}
 
     device.pushErrorScope('out-of-memory');
     device.pushErrorScope('validation');
