@@ -259,15 +259,24 @@ parameters are present.
       const srcColorSpace = kVideoInfo[videoName].colorSpace;
       const presentColors = kVideoExpectedColors[srcColorSpace][dstColorSpace];
 
-      // The test crops raw decoded videos first and then apply transform. Expectation should
-      // use coded colors as reference.
-      const expect = kVideoInfo[videoName].coded;
+      // The test crops raw decoded videos on quater first and then apply transform. Most color quaters are dropped.
+      // Expectation should use coded colors as reference.
+      const expectQuaters = kVideoInfo[videoName].coded;
+
+      // The test crops raw decoded video on center first and then apply transformation. All color quaters
+      // are kept. Expectation should use display colors as reference.
+      const expectCenters = kVideoInfo[videoName].display;
 
       const cropParams = [
         // Top left
         {
           subRect: { x: 0, y: 0, width: srcVideoWidth / 2, height: srcVideoHeight / 2 },
-          color: convertToUnorm8(presentColors[expect.topLeftColor]),
+          color: {
+            topLeftColor: convertToUnorm8(presentColors[expectQuaters.topLeftColor]),
+            topRightColor: convertToUnorm8(presentColors[expectQuaters.topLeftColor]),
+            bottomLeftColor: convertToUnorm8(presentColors[expectQuaters.topLeftColor]),
+            bottomRightColor: convertToUnorm8(presentColors[expectQuaters.topLeftColor]),
+          },
         },
         // Top right
         {
@@ -277,7 +286,12 @@ parameters are present.
             width: srcVideoWidth / 2,
             height: srcVideoHeight / 2,
           },
-          color: convertToUnorm8(presentColors[expect.topRightColor]),
+          color: {
+            topLeftColor: convertToUnorm8(presentColors[expectQuaters.topRightColor]),
+            topRightColor: convertToUnorm8(presentColors[expectQuaters.topRightColor]),
+            bottomLeftColor: convertToUnorm8(presentColors[expectQuaters.topRightColor]),
+            bottomRightColor: convertToUnorm8(presentColors[expectQuaters.topRightColor]),
+          },
         },
         // Bottom left
         {
@@ -287,7 +301,12 @@ parameters are present.
             width: srcVideoWidth / 2,
             height: srcVideoHeight / 2,
           },
-          color: convertToUnorm8(presentColors[expect.bottomLeftColor]),
+          color: {
+            topLeftColor: convertToUnorm8(presentColors[expectQuaters.bottomLeftColor]),
+            topRightColor: convertToUnorm8(presentColors[expectQuaters.bottomLeftColor]),
+            bottomLeftColor: convertToUnorm8(presentColors[expectQuaters.bottomLeftColor]),
+            bottomRightColor: convertToUnorm8(presentColors[expectQuaters.bottomLeftColor]),
+          },
         },
         // Bottom right
         {
@@ -297,7 +316,27 @@ parameters are present.
             width: srcVideoWidth / 2,
             height: srcVideoHeight / 2,
           },
-          color: convertToUnorm8(presentColors[expect.bottomRightColor]),
+          color: {
+            topLeftColor: convertToUnorm8(presentColors[expectQuaters.bottomRightColor]),
+            topRightColor: convertToUnorm8(presentColors[expectQuaters.bottomRightColor]),
+            bottomLeftColor: convertToUnorm8(presentColors[expectQuaters.bottomRightColor]),
+            bottomRightColor: convertToUnorm8(presentColors[expectQuaters.bottomRightColor]),
+          },
+        },
+        // Center
+        {
+          subrect: {
+            x: srcVideoWidth / 4,
+            y: srcVideoHeight / 4,
+            width: srcVideoWidth / 2,
+            height: srcVideoHeight / 2,
+          },
+          color: {
+            topLeftColor: convertToUnorm8(presentColors[expectCenters.topLeftColor]),
+            topRightColor: convertToUnorm8(presentColors[expectCenters.topRightColor]),
+            bottomLeftColor: convertToUnorm8(presentColors[expectCenters.bottomLeftColor]),
+            bottomRightColor: convertToUnorm8(presentColors[expectCenters.bottomRightColor]),
+          },
         },
       ];
 
@@ -339,10 +378,10 @@ parameters are present.
         // For validation, we sample a few pixels away from the edges to avoid compression
         // artifacts.
         t.expectSinglePixelComparisonsAreOkInTexture({ texture: colorAttachment }, [
-          { coord: { x: kWidth * 0.1, y: kHeight * 0.1 }, exp: cropParam.color },
-          { coord: { x: kWidth * 0.9, y: kHeight * 0.1 }, exp: cropParam.color },
-          { coord: { x: kWidth * 0.1, y: kHeight * 0.9 }, exp: cropParam.color },
-          { coord: { x: kWidth * 0.9, y: kHeight * 0.9 }, exp: cropParam.color },
+          { coord: { x: kWidth * 0.1, y: kHeight * 0.1 }, exp: cropParam.color.topLeftColor },
+          { coord: { x: kWidth * 0.9, y: kHeight * 0.1 }, exp: cropParam.color.topRightColor },
+          { coord: { x: kWidth * 0.1, y: kHeight * 0.9 }, exp: cropParam.color.bottomLeftColor },
+          { coord: { x: kWidth * 0.9, y: kHeight * 0.9 }, exp: cropParam.color.bottomRightColor },
         ]);
 
         subRect.close();
